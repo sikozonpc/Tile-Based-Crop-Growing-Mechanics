@@ -9,33 +9,26 @@ namespace Gameplay
 	public class CameraController : MonoBehaviour
 	{
 		public Tile selectionTileSprite;
-		public Tilemap selectionTilemap;
-		private int selectionLayer = 1;
-
-		//
-		// 1: TODO: - Create structured layer with index and tilemap together.
-		//          - Selection layer automatically selects tilemap to select the tile to.
 
 		// 2. TODO: - Crop growing stages.
 
-		public Tilemap objectsTilemap;
-
 		public Text selectedTileText;
-		public Text selectionLayerText;
 		public Image selectedTileImage;
 
 		private GameTile selectedTile;
 		private Tile previewTile;
-		private TileController tileController;
 		private Vector3Int previousTileCoordinate;
 
+
+		private TileController tileController;
+		private TilemapLayerController tilemapLayers;
 
 		private void Start()
 		{
 			tileController = FindObjectOfType<TileController>();
+			tilemapLayers = FindObjectOfType<TilemapLayerController>();
 
 			previewTile = selectionTileSprite;
-			selectionLayerText.text = selectionLayer.ToString();
 		}
 
 		private void Update()
@@ -50,8 +43,8 @@ namespace Gameplay
 				{
 					if (previewTile.name != selectionTileSprite.name)
 					{
-						TileController.instance.PlaceTile(mouseWorldPos, previewTile, objectsTilemap, selectionLayer);
-						SetPreviewTile(selectionTileSprite); // deselect it know
+						TileController.instance.PlaceTile(mouseWorldPos, previewTile, tilemapLayers.GetCurrentSelectedLayer());
+						SetPreviewTile(selectionTileSprite); // deselect the preview tile
 					}
 				}
 			} else
@@ -69,19 +62,9 @@ namespace Gameplay
 				OnWorldTileSelect(mouseWorldPos);
 			}
 
-
 			if (Input.GetKeyDown(KeyCode.G))
 			{
 				tileController.GenerateMap();
-			}
-
-			if (Input.GetKeyDown(KeyCode.Home))
-			{
-				IncreaseSelectionLayer();
-			}
-			if (Input.GetKeyDown(KeyCode.End))
-			{
-				DecreaseSelectionLayer();
 			}
 		}
 
@@ -102,6 +85,8 @@ namespace Gameplay
 
 		private void AddSelectionSpriteToTile(Vector3 mousePos)
 		{
+			Tilemap selectionTilemap = tilemapLayers.SelectionLayer.tilemap;
+
 			Vector3Int tileCoordinate = selectionTilemap.WorldToCell(mousePos);
 
 			if (tileCoordinate != previousTileCoordinate)
@@ -115,7 +100,9 @@ namespace Gameplay
 
 		private void OnWorldTileSelect(Vector3 mousePos)
 		{
-			Vector3Int worldPoint = new Vector3Int(Mathf.FloorToInt(mousePos.x), Mathf.FloorToInt(mousePos.y), selectionLayer);
+			int currentSelectedlayer = tilemapLayers.GetCurrentSelectedLayer().layer;
+
+			Vector3Int worldPoint = new Vector3Int(Mathf.FloorToInt(mousePos.x), Mathf.FloorToInt(mousePos.y), currentSelectedlayer);
 
 			var tiles = TileController.instance.tiles;
 
@@ -140,28 +127,12 @@ namespace Gameplay
 
 		private void DeselectAllSelectionTiles()
 		{
-			selectionTilemap.ClearAllTiles();
+			tilemapLayers.SelectionLayer.tilemap.ClearAllTiles();
 		}
 
 		private void SetPreviewTile(Tile tile)
 		{
 			previewTile = tile;
 		}
-
-        #region Debug Tools
-
-		private void IncreaseSelectionLayer()
-		{
-			selectionLayer = selectionLayer + 1;
-			selectionLayerText.text = selectionLayer.ToString();
-		}
-		private void DecreaseSelectionLayer()
-		{
-			selectionLayer = selectionLayer - 1;
-			selectionLayerText.text = selectionLayer.ToString();
-		}
-
-
-		#endregion
 	}
 }

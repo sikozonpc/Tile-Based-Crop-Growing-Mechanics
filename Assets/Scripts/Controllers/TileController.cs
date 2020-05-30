@@ -20,8 +20,7 @@ namespace Gameplay
 		public static TileController instance;
 		public Dictionary<Vector3, GameTile> tiles = new Dictionary<Vector3, GameTile>();
 
-		public Tilemap groundTilemap;
-		public Tilemap objectsTilemap;
+		private TilemapLayerController tilemapLayers;
 
 		private void Awake()
 		{
@@ -34,8 +33,7 @@ namespace Gameplay
 				Destroy(gameObject);
 			}
 
-			// Might have to iterate all tilemaps
-			ReadTilemapToTileData(objectsTilemap, 1);
+			tilemapLayers = FindObjectOfType<TilemapLayerController>();
 		}
 
 		private void ReadTilemapToTileData(Tilemap tilemap, int layer)
@@ -68,9 +66,11 @@ namespace Gameplay
 			}
 		}
 
-		public Dictionary<Vector3, GameTile> CreatePopulatedTilemap(Tilemap tilemap, int layer)
+		public Dictionary<Vector3, GameTile> CreatePopulatedTilemap(TilemapLayer tilemapLayer)
 		{
-			Dictionary<Vector3, GameTile> tileMap = new Dictionary<Vector3, GameTile>();
+			int layer = tilemapLayer.layer;
+			Tilemap tilemap = tilemapLayer.tilemap;
+			Dictionary<Vector3, GameTile> localTilemap = new Dictionary<Vector3, GameTile>();
 
 			foreach (Vector3Int pos in tilemap.cellBounds.allPositionsWithin)
 			{
@@ -100,15 +100,15 @@ namespace Gameplay
 					TileData = tileFromLibrary.TileData,
 				};
 
-				tileMap.Add(layeredWorldPosition, tile);
+				localTilemap.Add(layeredWorldPosition, tile);
 			}
 
-			return tileMap;
+			return localTilemap;
 		}
 
 		public void GenerateMap()
 		{
-			var groundTiles = CreatePopulatedTilemap(groundTilemap, 0);
+			var groundTiles = CreatePopulatedTilemap(tilemapLayers.GroundLayer);
 			// Adds ground tiles to the global tiles
 			tiles = DataUtils.MergeDictionaries(tiles, groundTiles);
 
@@ -120,16 +120,18 @@ namespace Gameplay
 			foreach (var tile in groundTiles)
 			{
 				GameTile tileData = tile.Value;
-				SetGameTile(groundTilemap, tileData);
+				SetGameTile(tilemapLayers.GroundLayer, tileData);
 			}
 		}
 
-		public void PlaceTile(Vector3 pos, Tile tile, Tilemap tilemap, int layer)
+		public void PlaceTile(Vector3 pos, Tile tile, TilemapLayer tilemapLayer)
 		{
-			var tilemapPos = tilemap.WorldToCell(pos);
+			Tilemap tilemap = tilemapLayer.tilemap;
+			int layer= tilemapLayer.layer;
 
-			var worldLocation = tilemap.CellToWorld(tilemapPos);
-			var layeredWorldPosition = new Vector3(worldLocation.x, worldLocation.y, layer);
+			Vector3Int tilemapPos = tilemap.WorldToCell(pos);
+			Vector3 worldLocation = tilemap.CellToWorld(tilemapPos);
+			Vector3 layeredWorldPosition = new Vector3(worldLocation.x, worldLocation.y, layer);
 
 			Vector3Int localPlace = new Vector3Int(tilemapPos.x, tilemapPos.y, layer);
 
@@ -148,7 +150,9 @@ namespace Gameplay
 
 			// if a tile already exists there, just replace it.
 			bool tileExistsInPos = tiles.ContainsKey(layeredWorldPosition);
+
 			print(tileExistsInPos);
+
 			if (tileExistsInPos)
 			{
 				tiles[layeredWorldPosition] = newTile;
@@ -156,15 +160,14 @@ namespace Gameplay
 			{
 				tiles.Add(layeredWorldPosition, newTile);
 			}
-
 			
-			SetGameTile(tilemap, newTile);
+			SetGameTile(tilemapLayer, newTile);
 		}
 
 
-		private void SetGameTile(Tilemap tilemap, GameTile gameTile)
+		private void SetGameTile(TilemapLayer tilemapLayer, GameTile gameTile)
 		{
-			tilemap.SetTile(gameTile.LocalPlace, gameTile.TileBase);
+			tilemapLayer.tilemap.SetTile(gameTile.LocalPlace, gameTile.TileBase);
 		}
 
 		public static GameTile GetTileByID(string id)

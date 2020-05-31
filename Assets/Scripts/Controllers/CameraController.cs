@@ -1,5 +1,4 @@
-﻿using UnityEditor.VersionControl;
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.Tilemaps;
 using UnityEngine.UI;
 using Utils;
@@ -8,17 +7,18 @@ namespace Gameplay
 {
 	public class CameraController : MonoBehaviour
 	{
+		[Header("Sprites")]
 		public Tile selectionTileSprite;
 
 		// 2. TODO: - Crop growing stages.
 
+		[Header("HUD Element")]
 		public Text selectedTileText;
 		public Image selectedTileImage;
 
-		private GameTile selectedTile;
+		private IGameTile selectedTile;
 		private Tile previewTile;
 		private Vector3Int previousTileCoordinate;
-
 
 		private TileController tileController;
 		private TilemapLayerController tilemapLayers;
@@ -43,7 +43,7 @@ namespace Gameplay
 				{
 					if (previewTile.name != selectionTileSprite.name)
 					{
-						TileController.instance.PlaceTile(mouseWorldPos, previewTile, tilemapLayers.GetCurrentSelectedLayer());
+						TileController.instance.PlaceTile(mouseWorldPos, previewTile.name, tilemapLayers.GetCurrentSelectedLayer());
 						SetPreviewTile(selectionTileSprite); // deselect the preview tile
 					}
 				}
@@ -70,16 +70,13 @@ namespace Gameplay
 
 		public void SelectTileFromHUD(string tileID)
 		{
-			GameTile tile = TileController.GetTileByID(tileID);
-
-			//SetSelectedTile(tile);
+			IGameTile tile = TileController.GetTileByAssetName(tileID);
 			SetPreviewTile(tile.TileData);
-			//UpdatedSelectedTileHUD(tile);
 		}
 
-		private void UpdatedSelectedTileHUD(GameTile tile)
+		private void UpdatedSelectedTileHUD(IGameTile tile)
 		{
-			selectedTileText.text = tile.Name;
+			selectedTileText.text = tile.Description;
 			selectedTileImage.sprite = tile.TileData.sprite;
 		}
 
@@ -101,26 +98,20 @@ namespace Gameplay
 		private void OnWorldTileSelect(Vector3 mousePos)
 		{
 			int currentSelectedlayer = tilemapLayers.GetCurrentSelectedLayer().layer;
-
 			Vector3Int worldPoint = new Vector3Int(Mathf.FloorToInt(mousePos.x), Mathf.FloorToInt(mousePos.y), currentSelectedlayer);
-
-			var tiles = TileController.instance.tiles;
 
 			print("Cliked at " + worldPoint);
 
 			// Tries to access Dictionary key
-			if (tiles.TryGetValue(worldPoint, out selectedTile))
+			if (TileController.instance.tiles.TryGetValue(worldPoint, out selectedTile))
 			{
-				print("Tile " + selectedTile.Name + " costs: " + selectedTile.Cost);
+				print("Tile " + selectedTile.Description + " costs: " + selectedTile.ID);
 				SetSelectedTile(selectedTile);
 				UpdatedSelectedTileHUD(selectedTile);
-
-				//selectedTile.TilemapMember.SetTileFlags(selectedTile.LocalPlace, TileFlags.None);
-				//selectedTile.TilemapMember.SetColor(selectedTile.LocalPlace, Color.green);
 			}
 		}
 
-		private void SetSelectedTile(GameTile tile)
+		private void SetSelectedTile(IGameTile tile)
 		{
 			selectedTile = tile;
 		}

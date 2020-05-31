@@ -1,11 +1,6 @@
-﻿using Gameplay;
-using System;
-using System.Collections;
+﻿using System.Collections;
 using System.Collections.Generic;
-using System.Linq;
-using UnityEditor.Sprites;
 using UnityEngine;
-using UnityEngine.SocialPlatforms;
 using UnityEngine.Tilemaps;
 using Utils;
 
@@ -15,12 +10,16 @@ using Utils;
 
 namespace Gameplay
 {
+	public delegate void PlantPlantedHandler(string ID);
+
 	public class TileController : MonoBehaviour
 	{
 		public static TileController instance;
-		public Dictionary<Vector3, GameTile> tiles = new Dictionary<Vector3, GameTile>();
+		public Dictionary<Vector3, IGameTile> tiles = new Dictionary<Vector3, IGameTile>();
 
 		private TilemapLayerController tilemapLayers;
+
+		public event PlantPlantedHandler OnStageGrow;
 
 		private void Awake()
 		{
@@ -48,29 +47,28 @@ namespace Gameplay
 				var layeredWorldPosition = new Vector3(worldLocation.x, worldLocation.y, layer);
 
 				TileBase tileBase = tilemap.GetTile(localPlace);
-				GameTile tileFromLibrary = GetTileByID(tileBase.name);
+				IGameTile tileFromLibrary = GetTileByAssetName(tileBase.name);
 
-				GameTile tile = new GameTile
+				IGameTile tile = new GameTile
 				{
 					LocalPlace = localPlace,
 					WorldLocation = layeredWorldPosition,
 					TileBase = tileBase,
 					TilemapMember = tilemap,
-					Name = tileFromLibrary.Name,
+					Description = tileFromLibrary.Description,
 					TileData = tileFromLibrary.TileData,
 					Cost = 1
 				};
 
-				print(layeredWorldPosition);
 				tiles.Add(layeredWorldPosition, tile);
 			}
 		}
 
-		public Dictionary<Vector3, GameTile> CreatePopulatedTilemap(TilemapLayer tilemapLayer)
+		public Dictionary<Vector3, IGameTile> CreatePopulatedTilemap(TilemapLayer tilemapLayer)
 		{
 			int layer = tilemapLayer.layer;
 			Tilemap tilemap = tilemapLayer.tilemap;
-			Dictionary<Vector3, GameTile> localTilemap = new Dictionary<Vector3, GameTile>();
+			Dictionary<Vector3, IGameTile> localTilemap = new Dictionary<Vector3, IGameTile>();
 
 			foreach (Vector3Int pos in tilemap.cellBounds.allPositionsWithin)
 			{
@@ -87,15 +85,15 @@ namespace Gameplay
 				var worldLocation = tilemap.CellToWorld(localPlace);
 				var layeredWorldPosition = new Vector3(worldLocation.x, worldLocation.y, layer);
 
-				GameTile tileFromLibrary = GetTileByID("grass_001");
+				IGameTile tileFromLibrary = GetTileByAssetName("grass_001");
 
-				GameTile tile = new GameTile
+				IGameTile tile = new GameTile
 				{
 					LocalPlace = localPlace,
 					WorldLocation = layeredWorldPosition,
 					TileBase = tileFromLibrary.TileBase,
 					TilemapMember = tilemap,
-					Name = tileFromLibrary.Name,
+					Description = tileFromLibrary.Description,
 					Cost = 0,
 					TileData = tileFromLibrary.TileData,
 				};
@@ -112,47 +110,30 @@ namespace Gameplay
 			// Adds ground tiles to the global tiles
 			tiles = DataUtils.MergeDictionaries(tiles, groundTiles);
 
-			//var objectTiles = CreatePopulatedTilemap(objectsTilemap, 1);
-			// Adds object tiles to the global tiles
-			//tiles = DataUtils.MergeDictionaries(tiles, objectTiles);
-
-
 			foreach (var tile in groundTiles)
 			{
-				GameTile tileData = tile.Value;
+				IGameTile tileData = tile.Value;
 				SetGameTile(tilemapLayers.GroundLayer, tileData);
 			}
 		}
 
-		public void PlaceTile(Vector3 pos, Tile tile, TilemapLayer tilemapLayer)
+		public void PlaceTile(Vector3 pos, string assetName, TilemapLayer tilemapLayer)
 		{
 			Tilemap tilemap = tilemapLayer.tilemap;
 			int layer= tilemapLayer.layer;
 
 			Vector3Int tilemapPos = tilemap.WorldToCell(pos);
-			Vector3 worldLocation = tilemap.CellToWorld(tilemapPos);
-			Vector3 layeredWorldPosition = new Vector3(worldLocation.x, worldLocation.y, layer);
+			Vector3 layeredWorldPosition = new Vector3(tilemapPos.x, tilemapPos.y, layer);
 
 			Vector3Int localPlace = new Vector3Int(tilemapPos.x, tilemapPos.y, layer);
 
-			print(localPlace);
-
-			GameTile newTile = new GameTile()
-			{
-				LocalPlace = localPlace,
-				WorldLocation = layeredWorldPosition,
-				TileBase = tile,
-				TilemapMember = tilemap,
-				Name = tile.name,
-				Cost = 0,
-				TileData = tile,
-			};
+			IGameTile newTile = TileLibrary.instance.GetClonedTile(assetName);
+			newTile.LocalPlace = localPlace;
+			newTile.WorldLocation = layeredWorldPosition;
+			newTile.TilemapMember = tilemap;
 
 			// if a tile already exists there, just replace it.
 			bool tileExistsInPos = tiles.ContainsKey(layeredWorldPosition);
-
-			print(tileExistsInPos);
-
 			if (tileExistsInPos)
 			{
 				tiles[layeredWorldPosition] = newTile;
@@ -160,19 +141,40 @@ namespace Gameplay
 			{
 				tiles.Add(layeredWorldPosition, newTile);
 			}
-			
+
+			bool isACrop = newTile.GetType() == typeof(CropTile);
+			if (isACrop)
+			{
+				(newTile as CropTile).StartGrowing();
+			}
+
 			SetGameTile(tilemapLayer, newTile);
 		}
 
 
-		private void SetGameTile(TilemapLayer tilemapLayer, GameTile gameTile)
+		// Starts a coroutine and returns to the caller after it's time is passed
+		public void Grow(int timeToGrow, int stages, string ID)
+		{
+			StartCoroutine(StartGrowing(timeToGrow, stages, ID));
+		}
+
+		private IEnumerator StartGrowing(int timeToGrow, int stages, string ID)
+		{
+			for (int stage = 0; stage < stages; stage++)
+			{
+				yield return new WaitForSeconds(timeToGrow);
+				OnStageGrow?.Invoke(ID);
+			}
+		}
+
+		private void SetGameTile(TilemapLayer tilemapLayer, IGameTile gameTile)
 		{
 			tilemapLayer.tilemap.SetTile(gameTile.LocalPlace, gameTile.TileBase);
 		}
 
-		public static GameTile GetTileByID(string id)
+		public static IGameTile GetTileByAssetName(string assetName)
 		{
-			return TileLibrary.instance.Tiles[id];
+			return TileLibrary.instance.GetClonedTile(assetName);
 		}
 	}
 }

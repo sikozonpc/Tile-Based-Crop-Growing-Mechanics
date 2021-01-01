@@ -39,7 +39,7 @@ public class TileLibrary : MonoBehaviour
         Tiles.Add("tomato_001", new CropTile()
         {
             Description = "Tomato seed - Stage 1",
-            TileBase = Resources.Load<TileBase>("Sprites/tomato_001"),
+            TileBase = Resources.Load<TileBase>("Sprites/tomato_001"),  // location to the art sprites
             TileData = Resources.Load<Tile>("Sprites/tomato_001"),
             GrowthStageTiles = new GrowthStage[]
             {

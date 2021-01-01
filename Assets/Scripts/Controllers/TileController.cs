@@ -4,23 +4,24 @@ using UnityEngine;
 using UnityEngine.Tilemaps;
 using Utils;
 
-/*
-   Tile Controller Singleton 
-*/
 
+/*
+   Tile Controller Singleton
+   =========================
+   Provides tile and tilemaps manipulation.
+*/
 namespace Gameplay
 {
 	public delegate void PlantPlantedHandler(string ID);
 
 	public class TileController : MonoBehaviour
 	{
-		public static TileController instance;
 		public Dictionary<Vector3, IGameTile> tiles = new Dictionary<Vector3, IGameTile>();
-
 		private TilemapLayerController tilemapLayers;
 
 		public event PlantPlantedHandler OnStageGrow;
 
+		public static TileController instance;
 		private void Awake()
 		{
 			if (!instance)

@@ -10,7 +10,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 13312, guid: 0000000000000000e000000000000000, type: 0}
-  m_Name: Crop_Spritesheet_24
+  m_Name: tomato_006
   m_EditorClassIdentifier: 
   m_Sprite: {fileID: -9150622835112388582, guid: eea4daa585020e14db7cb92184d7ea9d,
     type: 3}

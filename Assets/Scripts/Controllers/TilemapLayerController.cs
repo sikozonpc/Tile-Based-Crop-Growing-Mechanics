@@ -4,7 +4,9 @@ using UnityEngine.Tilemaps;
 using System.Collections.Generic;
 using UnityEngine.UI;
 
-
+/**
+    Abstraction of the Tilemap layers
+**/
 namespace Gameplay
 {
     public enum Layers
